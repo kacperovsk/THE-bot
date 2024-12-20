@@ -2,6 +2,7 @@ import discord
 import os
 from discord.ext import commands
 from dotenv import load_dotenv
+from discord import Role
 
 load_dotenv()
 
@@ -20,6 +21,12 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user}')
+
+
+@bot.check
+async def check_role(ctx):
+    return any(role.name == "Ręka Khora" for role in ctx.author.roles)
+
 
 @bot.command(name="add_role")
 async def add_role(ctx, role_mention: discord.Role = None):
@@ -48,6 +55,7 @@ async def add_role(ctx, role_mention: discord.Role = None):
     else:
         await ctx.send("Please reply to a message with mentions to assign roles.")
 
+
 @bot.command(name="remove_role")
 async def remove_role(ctx, role_mention: discord.Role = None):
     # If no role is mentioned, return an error
@@ -66,11 +74,12 @@ async def remove_role(ctx, role_mention: discord.Role = None):
         # Remove the role from all mentions in the replied message
         if replied_message.mentions:
             for member in replied_message.mentions:
-                try:
-                    await member.remove_roles(role_mention)
-                    removed_count += 1
-                except Exception as e:
-                    print(f"Failed to remove role from {member}: {e}")
+                if role_mention in member.roles:
+                    try:
+                        await member.remove_roles(role_mention)
+                        removed_count += 1
+                    except Exception as e:
+                        print(f"Failed to remove role from {member}: {e}")
 
             # Send a message with the count of members the role was removed from
             await ctx.send(f"✅ Successfully removed the role '{role_mention.name}' from {removed_count} members.")
@@ -79,28 +88,38 @@ async def remove_role(ctx, role_mention: discord.Role = None):
     else:
         await ctx.send("Please reply to a message with mentions to remove roles.")
 
+
 @bot.command(name="remove_all")
-async def remove_all(ctx, role: discord.Role = None):
+async def remove_all(ctx, roles: commands.Greedy[Role] = None):
     # If no role is mentioned, return an error
-    if not role:
+    if not roles:
         await ctx.send("Please mention a role to remove from all users, e.g., `!remove_all @split1`")
         return
 
     # Get all members who have the role
-    members_with_role = [member for member in ctx.guild.members if role in member.roles]
+    members_with_role = [member for member in ctx.guild.members if roles in member.roles]
 
     # Counter for successfully removed roles
-    removed_count = 0
+    removed_counts = {}
 
-    # Remove the role from all members who have it
-    for member in members_with_role:
-        try:
-            await member.remove_roles(role)
-            removed_count += 1
-        except Exception as e:
-            print(f"Failed to remove role from {member}: {e}")
+    for role in roles:
+        removed_count = 0
 
+        # Remove the role from all members who have it
+        for member in ctx.guild.members:
+            if role in member.roles:
+                try:
+                    await member.remove_roles(role)
+                    removed_count += 1
+                except Exception as e:
+                    print(f"Failed to remove role {role} from {member}: {e}")
+            removed_counts[role.name] = removed_count
     # Send a message with the count of members the role was removed from
-    await ctx.send(f"✅ Successfully removed the role '{role.name}' from {removed_count} members.")
+    result_message = "✅ Role removal summary:\n"
+    for role_name, count in removed_counts.items():
+        result_message += f"- Removed role '{role_name}' from {count} members.\n"
+    await ctx.send(result_message)
+
+    
 # Run the bot
 bot.run(TOKEN)
