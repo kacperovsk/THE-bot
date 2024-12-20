@@ -120,6 +120,51 @@ async def remove_all(ctx, roles: commands.Greedy[Role] = None):
         result_message += f"- Removed role '{role_name}' from {count} members.\n"
     await ctx.send(result_message)
 
+ROLE_IDS_GROUPS = {
+    "splits": [1318957973057568860, 1318958055668449341, 1318958096852451439]  # Replace with real IDs
+}
+
+async def remove_all(ctx, group_name: str = None):
+    """
+    Removes all roles from a predefined group (e.g., "splits") from all members who have them.
+    """
+    # Check if the group_name is provided
+    if not group_name:
+        await ctx.send("Please specify a group of roles to remove, e.g., `!remove_all splits`")
+        return
+
+    # Fetch the role IDs for the given group name
+    role_ids = ROLE_IDS_GROUPS.get(group_name.lower())
+    if not role_ids:
+        await ctx.send(f"No roles are configured for the group '{group_name}'.")
+        return
+
+    # Fetch the roles from the server by their IDs
+    roles_to_remove = [ctx.guild.get_role(role_id) for role_id in role_ids]
+    roles_to_remove = [role for role in roles_to_remove if role]  # Filter out invalid roles
+
+    if not roles_to_remove:
+        await ctx.send(f"Could not find any valid roles for the group '{group_name}'.")
+        return
+
+    removed_counts = {role.name: 0 for role in roles_to_remove}
+
+    # Iterate through all members in the guild
+    for member in ctx.guild.members:
+        for role in roles_to_remove:
+            if role in member.roles:
+                try:
+                    await member.remove_roles(role)
+                    removed_counts[role.name] += 1
+                except Exception as e:
+                    print(f"Failed to remove role {role.name} from {member}: {e}")
+
+    # Prepare the result summary
+    result_message = f"✅ Role removal summary for group '{group_name}':\n"
+    for role_name, count in removed_counts.items():
+        result_message += f"- Removed role '{role_name}' from {count} members.\n"
+
+    await ctx.send(result_message)
     
 # Run the bot
 bot.run(TOKEN)
