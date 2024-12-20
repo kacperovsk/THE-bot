@@ -21,11 +21,11 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 async def on_ready():
     print(f'Logged in as {bot.user}')
 
-@bot.command(name="assign_rank")
-async def assign_rank(ctx, role_mention: discord.Role = None):
+@bot.command(name="add_role")
+async def add_role(ctx, role_mention: discord.Role = None):
     # If no role is mentioned, return an error
     if not role_mention:
-        await ctx.send("Please mention a role to assign, e.g., `!assign_rank @split1`")
+        await ctx.send("Please mention a role to assign, e.g., `!add_role @split1`")
         return
 
     # Check if the command is a reply to another message
@@ -33,21 +33,21 @@ async def assign_rank(ctx, role_mention: discord.Role = None):
         # Fetch the replied message
         replied_message = await ctx.channel.fetch_message(ctx.message.reference.message_id)
 
-        assigned_count = 0
+        added_count = 0
         # Assign the role to all mentions in the replied message
         if replied_message.mentions:
             for member in replied_message.mentions:
                 try:
                     await member.add_roles(role_mention)
-                    assigned_count += 1
+                    added_count += 1
                 except Exception as e:
                     print(f"Failed to assign role to {member}: {e}")
-            await ctx.send(f"✅ Successfully assigned the role '{role_mention.name}' to {assigned_count} members.")
+            await ctx.send(f"✅ Successfully assigned the role '{role_mention.name}' to {added_count} members.")
         else:
             await ctx.send("No users mentioned in the replied-to message.")
     else:
         await ctx.send("Please reply to a message with mentions to assign roles.")
-        
+
 @bot.command(name="remove_role")
 async def remove_role(ctx, role_mention: discord.Role = None):
     # If no role is mentioned, return an error
@@ -79,4 +79,28 @@ async def remove_role(ctx, role_mention: discord.Role = None):
     else:
         await ctx.send("Please reply to a message with mentions to remove roles.")
 
+@bot.command(name="remove_all")
+async def remove_all(ctx, role: discord.Role = None):
+    # If no role is mentioned, return an error
+    if not role:
+        await ctx.send("Please mention a role to remove from all users, e.g., `!remove_all @split1`")
+        return
+
+    # Get all members who have the role
+    members_with_role = [member for member in ctx.guild.members if role in member.roles]
+
+    # Counter for successfully removed roles
+    removed_count = 0
+
+    # Remove the role from all members who have it
+    for member in members_with_role:
+        try:
+            await member.remove_roles(role)
+            removed_count += 1
+        except Exception as e:
+            print(f"Failed to remove role from {member}: {e}")
+
+    # Send a message with the count of members the role was removed from
+    await ctx.send(f"✅ Successfully removed the role '{role.name}' from {removed_count} members.")
+# Run the bot
 bot.run(TOKEN)
